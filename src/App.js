@@ -1,13 +1,14 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import LoginPage from "./pages/LoginPage";
+import SetPasswordPage from "./pages/SetPasswordPage"; // New Import
 import Dashboard from "./pages/Admin/Dashboard";
-import UserManagement from "./pages/Admin/UserManagement"; // Make sure this path is correct
+import UserManagement from "./pages/Admin/UserManagement"; 
 import SideBar from "./components/Sidebar";
-import DownloadReports from "./pages/Admin/DownloadReports"; // Make sure this path is correct
+import DownloadReports from "./pages/Admin/DownloadReports"; 
 import "./index.css";
 
-// This wrapper ensures the Sidebar stays on the left for all admin pages
 const AdminLayout = ({ children }) => (
   <div className="flex min-h-screen font-sans">
     <SideBar />
@@ -18,11 +19,14 @@ const AdminLayout = ({ children }) => (
 function App() {
   return (
     <div className="min-h-screen bg-white">
+      <Toaster position="top-right" />
+      
       <Routes>
-        {/* Login Page: No Sidebar */}
+        {/* Public Routes */}
         <Route path="/" element={<LoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
 
-        {/* Dashboard: Sidebar + Dashboard content */}
+        {/* Protected Admin Routes */}
         <Route
           path="/dashboard"
           element={
@@ -31,8 +35,6 @@ function App() {
             </AdminLayout>
           }
         />
-
-        {/* User Management: Sidebar + User Table content */}
         <Route
           path="/users"
           element={
@@ -41,7 +43,6 @@ function App() {
             </AdminLayout>
           }
         />
-
         <Route
           path="/reports"
           element={
