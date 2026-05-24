@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { 
   ChevronLeftIcon, 
   TrashIcon, 
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon
 } from "@heroicons/react/24/outline";
 import ManagerSidebar from "../../components/ManagerSidebar";
 
@@ -17,17 +19,31 @@ const Maintenance = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Checkbox Tracking State
+  const [selectedTicketIds, setSelectedTicketIds] = useState([]);
+
   // Tracking Action Form Context
   const [ticketStatus, setTicketStatus] = useState("REPORTED");
   const [managerNotes, setManagerNotes] = useState("");
 
+  // UI Modal Manager State
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: "confirm", 
+    title: "",
+    message: "",
+    onConfirm: null,
+    isProcessing: false
+  });
+
   const token = localStorage.getItem("token");
 
-  // Fetch all registered tracking claims on load
+  // Fetch tickets on lifecycle mount
   useEffect(() => {
     fetchActiveTickets();
   }, []);
 
+  // GET: Fetch all registered tracking claims from the gateway
   const fetchActiveTickets = async () => {
     try {
       setLoading(true);
@@ -55,6 +71,11 @@ const Maintenance = () => {
     setViewDetail(true);
   };
 
+  // Close Modal Utility
+  const closeModal = () => {
+    setModalConfig(prev => ({ ...prev, isOpen: false, isProcessing: false }));
+  };
+
   // PUT: Update processing progress changes downstream to PostgreSQL
   const handleUpdateTicket = async () => {
     setSubmitLoading(true);
@@ -74,12 +95,126 @@ const Maintenance = () => {
       if (!response.ok) throw new Error("Server rejected status property write handshake.");
       
       setViewDetail(false);
-      fetchActiveTickets(); // Reload main dashboard list registry data
+      fetchActiveTickets(); 
+      
+      setModalConfig({
+        isOpen: true,
+        type: "alert",
+        title: "Update Successful",
+        message: `Ticket #00${selectedIssue.id} status tracking records have been safely written down.`,
+        onConfirm: closeModal
+      });
     } catch (err) {
-      alert(err.message);
+      setModalConfig({
+        isOpen: true,
+        type: "alert",
+        title: "Operation Failed",
+        message: err.message,
+        onConfirm: closeModal
+      });
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  // DELETE: Trigger backend endpoint removal handshake
+  const handleDeleteTicket = (ticketId) => {
+    setModalConfig({
+      isOpen: true,
+      type: "confirm",
+      title: "Confirm Purge Operation",
+      message: `Are you absolutely sure you want to permanently delete ticket #00${ticketId}? This action cannot be undone.`,
+      isProcessing: false,
+      onConfirm: async () => {
+        setModalConfig(prev => ({ ...prev, isProcessing: true }));
+        try {
+          const response = await fetch(`http://localhost:8765/api/maintenance/tickets/${ticketId}`, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!response.ok) throw new Error("Failed to delete the maintenance record. Verify permissions.");
+
+          setViewDetail(false);
+          setSelectedTicketIds(prev => prev.filter(id => id !== ticketId));
+          fetchActiveTickets();
+          
+          setModalConfig({
+            isOpen: true,
+            type: "alert",
+            title: "Record Dropped",
+            message: `Maintenance ticket #00${ticketId} has been successfully cleared from Postgres logs.`,
+            onConfirm: closeModal
+          });
+        } catch (err) {
+          setModalConfig({
+            isOpen: true,
+            type: "alert",
+            title: "Network Deletion Error",
+            message: err.message,
+            onConfirm: closeModal
+          });
+        }
+      }
+    });
+  };
+
+  // Bulk Deletion for checkboxes in List View
+  const handleBulkDelete = () => {
+    if (selectedTicketIds.length === 0) return;
+
+    setModalConfig({
+      isOpen: true,
+      type: "confirm",
+      title: "Confirm Bulk Purge",
+      message: `Are you sure you want to delete all ${selectedTicketIds.length} selected ticket logs simultaneously?`,
+      isProcessing: false,
+      onConfirm: async () => {
+        setModalConfig(prev => ({ ...prev, isProcessing: true }));
+        try {
+          await Promise.all(
+            selectedTicketIds.map(id =>
+              fetch(`http://localhost:8765/api/maintenance/tickets/${id}`, {
+                method: "DELETE",
+                headers: {
+                  "Authorization": `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+              })
+            )
+          );
+
+          setSelectedTicketIds([]);
+          fetchActiveTickets();
+
+          setModalConfig({
+            isOpen: true,
+            type: "alert",
+            title: "Batch Deletion Done",
+            message: "All checked tickets cleared successfully.",
+            onConfirm: closeModal
+          });
+        } catch (err) {
+          setModalConfig({
+            isOpen: true,
+            type: "alert",
+            title: "Batch Failure Context",
+            message: "An administrative error occurred during microservice loop processing.",
+            onConfirm: closeModal
+          });
+        }
+      }
+    });
+  };
+
+  // Toggle checkbox utility selection mapping
+  const handleCheckboxChange = (ticketId) => {
+    setSelectedTicketIds((prev) =>
+      prev.includes(ticketId) ? prev.filter((id) => id !== ticketId) : [...prev, ticketId]
+    );
   };
 
   // Live client-side string filter logic
@@ -99,7 +234,8 @@ const Maintenance = () => {
       
       <main className="flex-1 p-10">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-xl font-semibold text-gray-800 mb-8">Hello Lungten,</h1>
+          {/* Simplified static header layout */}
+          <h1 className="text-xl font-semibold text-gray-800 mb-8">Maintenance</h1>
 
           {error && (
             <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 text-sm border border-red-100">
@@ -121,7 +257,19 @@ const Maintenance = () => {
                     className="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-none rounded-lg text-sm outline-none text-gray-700" 
                   />
                 </div>
-                <TrashIcon className="h-6 w-6 text-red-400 cursor-pointer hover:text-red-600 transition-colors" />
+                <div className="flex items-center gap-2">
+                  {selectedTicketIds.length > 0 && (
+                    <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded animate-fade-in">
+                      {selectedTicketIds.length} Selected
+                    </span>
+                  )}
+                  <TrashIcon 
+                    onClick={handleBulkDelete}
+                    className={`h-6 w-6 transition-colors ${
+                      selectedTicketIds.length > 0 ? "text-red-500 cursor-pointer hover:text-red-700" : "text-gray-200 cursor-not-allowed"
+                    }`} 
+                  />
+                </div>
               </div>
 
               {loading ? (
@@ -133,7 +281,12 @@ const Maintenance = () => {
                   {filteredTickets.map((ticket) => (
                     <div key={ticket.id} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
                       <div className="flex items-center gap-4 w-1/3">
-                        <input type="checkbox" className="rounded border-gray-300 text-[#6a89b5] focus:ring-[#6a89b5]" />
+                        <input 
+                          type="checkbox" 
+                          checked={selectedTicketIds.includes(ticket.id)}
+                          onChange={() => handleCheckboxChange(ticket.id)}
+                          className="rounded border-gray-300 text-[#6a89b5] focus:ring-[#6a89b5]" 
+                        />
                         <div className="flex flex-col">
                           <span className="text-xs font-black text-gray-400">#00{ticket.id}</span>
                           <span className="text-sm font-bold text-gray-700 truncate max-w-[200px]" title={ticket.reportedByEmail}>
@@ -167,9 +320,18 @@ const Maintenance = () => {
           ) : (
             /* DETAIL FORM VIEW */
             <div className="bg-white rounded-2xl p-8 shadow-sm">
-              <button onClick={() => setViewDetail(false)} className="mb-6 hover:bg-gray-100 p-1 rounded-full transition-colors">
-                <ChevronLeftIcon className="h-6 w-6 text-gray-400" />
-              </button>
+              <div className="flex justify-between items-center mb-6">
+                <button onClick={() => setViewDetail(false)} className="hover:bg-gray-100 p-1 rounded-full transition-colors">
+                  <ChevronLeftIcon className="h-6 w-6 text-gray-400" />
+                </button>
+                <button 
+                  onClick={() => handleDeleteTicket(selectedIssue?.id)}
+                  className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 transition-colors border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  Delete Ticket
+                </button>
+              </div>
 
               <div className="grid grid-cols-2 gap-x-12 gap-y-6">
                 {/* Left Column */}
@@ -239,6 +401,58 @@ const Maintenance = () => {
           )}
         </div>
       </main>
+
+      {/* --- REUSABLE TAILWIND NOTIFICATION MODAL DIALOG --- */}
+      {modalConfig.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl transform transition-all border border-gray-100 animate-slide-up">
+            <div className="flex items-start gap-4">
+              {modalConfig.type === "confirm" ? (
+                <div className="p-3 bg-red-50 rounded-xl text-red-500">
+                  <ExclamationTriangleIcon className="h-6 w-6" />
+                </div>
+              ) : (
+                <div className="p-3 bg-emerald-50 rounded-xl text-emerald-500">
+                  <CheckCircleIcon className="h-6 w-6" />
+                </div>
+              )}
+              
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900">{modalConfig.title}</h3>
+                <p className="text-sm text-gray-500 mt-2 leading-relaxed">{modalConfig.message}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-gray-50 pt-4">
+              {modalConfig.type === "confirm" ? (
+                <>
+                  <button 
+                    disabled={modalConfig.isProcessing}
+                    onClick={closeModal}
+                    className="px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    disabled={modalConfig.isProcessing}
+                    onClick={modalConfig.onConfirm}
+                    className="px-5 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-md transition-colors disabled:bg-gray-400"
+                  >
+                    {modalConfig.isProcessing ? "Processing..." : "Confirm Action"}
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={modalConfig.onConfirm}
+                  className="px-6 py-2 text-sm font-bold text-white bg-[#4e89ff] hover:bg-blue-600 rounded-xl shadow-md transition-colors w-full sm:w-auto"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

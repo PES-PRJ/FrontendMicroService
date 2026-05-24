@@ -168,7 +168,7 @@ const ManagerDashboard = () => {
 
       <main className="flex-1 p-10">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-xl font-semibold text-gray-800 mb-8">Asset Manager Workspace</h1>
+          <h1 className="text-xl font-semibold text-gray-800 mb-8">Dashboard</h1>
 
           <div className="bg-white rounded-2xl p-8 shadow-sm">
             <div className="flex justify-between items-center mb-6">

@@ -150,7 +150,7 @@ const EmployeeDashboard = () => {
             <main className="flex-1 bg-[#f0ebff] p-10 relative">
                 <div className="max-w-5xl mx-auto">
                     <div className="flex justify-between items-center mb-8">
-                        <h1 className="text-xl font-semibold text-gray-800">Hello Zimba,</h1>
+                        <h1 className="text-xl font-semibold text-gray-800">Dashboard</h1>
                     </div>
 
                     {error && (

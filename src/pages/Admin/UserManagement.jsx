@@ -8,6 +8,12 @@ import {
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
+// Database key to User-Facing label mapping dictionary
+const ROLE_LABELS = {
+    EMPLOYEE: "Employee",
+    ASSETMANAGER: "Asset Manager"
+};
+
 const StatusPill = ({ password }) => {
     const isActive = password !== null && password !== "";
     return (
@@ -21,7 +27,7 @@ const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [deleteConfirmId, setDeleteConfirmId] = useState(null); // To track which user to delete
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null); 
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({ name: "", email: "", role: "EMPLOYEE" });
 
@@ -45,7 +51,7 @@ const UserManagement = () => {
         const payload = {
             name: formData.name,
             email: formData.email,
-            role: { name: formData.role } // Correctly nesting the role name
+            role: { name: formData.role } 
         };
 
         try {
@@ -120,7 +126,10 @@ const UserManagement = () => {
                             <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                                 <td className="py-5 px-2 font-bold">{user.name}</td>
                                 <td className="py-5 px-2 text-gray-600">{user.email}</td>
-                                <td className="py-5 px-2 font-medium">{user.role?.name.replace('_', ' ')}</td>
+                                {/* Updated role rendering using the map dictionary lookup */}
+                                <td className="py-5 px-2 font-medium">
+                                    {ROLE_LABELS[user.role?.name] || user.role?.name || "N/A"}
+                                </td>
                                 <td className="py-5 px-2">
                                     <StatusPill password={user.password} />
                                 </td>
