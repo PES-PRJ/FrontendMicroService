@@ -43,7 +43,7 @@ const LoginPage = () => {
                     navigate("/dashboard");
                 } else if (role === "EMPLOYEE") {
                     navigate("/employee-dashboard");
-                } else if (role === "ASSET_MANAGER") {
+                } else if (role === "ASSETMANAGER") {
                     navigate("/manager-dashboard");
                 } else {
                     navigate("/");
